@@ -10,37 +10,31 @@
                         <div class="mt-1 relative rounded-md shadow-md">
                             <input
                                 v-model="ticker"
+                                @input="changeTicker"
                                 @keydown.enter="add"
                                 type="text"
                                 name="wallet"
                                 id="wallet"
                                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-                                placeholder="Например DOGE"
+                                placeholder="Например BTC"
                             />
                         </div>
-                        <!--                        <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
-                                                    <span
-                                                        class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-                                                    >
-                                                        BTC
-                                                    </span>
-                                                    <span
-                                                        class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-                                                    >
-                                                        DOGE
-                                                    </span>
-                                                    <span
-                                                        class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-                                                    >
-                                                        BCH
-                                                    </span>
-                                                    <span
-                                                        class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-                                                    >
-                                                        CHD
-                                                    </span>
-                                                </div>-->
-                        <!--                        <div class="text-sm text-red-600">Такой тикер уже добавлен</div>-->
+                        <div
+                            v-if="suggest.length"
+                            class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap justify-center"
+                        >
+                            <span
+                                v-for="(s, id) in suggest.slice(0, 4)"
+                                :key="id"
+                                @click="addSuggest(s)"
+                                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
+                            >
+                                {{ s }}
+                            </span>
+                        </div>
+                        <div v-if="suggestError" class="text-sm text-red-600">
+                            Такой тикер уже добавлен
+                        </div>
                     </div>
                 </div>
                 <button
@@ -48,7 +42,6 @@
                     type="button"
                     class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
-                    <!-- Heroicon name: solid/mail -->
                     <svg
                         class="-ml-0.5 mr-2 h-6 w-6"
                         xmlns="http://www.w3.org/2000/svg"
@@ -150,15 +143,29 @@
 export default {
     data() {
         return {
+            coins: null,
             ticker: null,
             tickers: [],
             sel: null,
-            graph: []
+            graph: [],
+            suggest: [],
+            suggestError: false
         };
+    },
+
+    created: async function () {
+        const req = await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true');
+
+        this.coins = await req.json();
     },
 
     methods: {
         add() {
+            if (this.tickers.find((t) => t.name === this.ticker.toUpperCase().trim())) {
+                this.suggestError = true;
+                return;
+            }
+
             const newTicker = { name: this.ticker, price: 'wait' };
 
             this.tickers.push(newTicker);
@@ -172,14 +179,35 @@ export default {
                 this.tickers.find((t) => t.name === newTicker.name).price =
                     data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-                /*this.newTicker.price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);*/
-
                 if (this.sel?.name === newTicker.name) {
                     this.graph.push(data.USD);
                 }
             }, 3000);
 
             this.ticker = null;
+            this.suggest = [];
+        },
+
+        addSuggest(ticker) {
+            this.ticker = ticker;
+
+            this.add();
+        },
+
+        changeTicker() {
+            this.suggestError = false;
+
+            if (this.ticker.length) {
+                this.suggest = Object.values(this.coins.Data)
+                    .filter(
+                        (coin) =>
+                            coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
+                            coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())
+                    )
+                    .map((coin) => coin.Symbol);
+            } else {
+                this.suggest = [];
+            }
         },
 
         normalizeGraph() {
