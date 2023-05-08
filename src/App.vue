@@ -35,7 +35,7 @@
                         <div v-if="suggestError" class="text-sm text-red-600">
                             Такая криптовалюта уже добавлена
                         </div>
-                        <div v-if="non_existent" class="text-sm text-red-600">
+                        <div v-if="nonExistent" class="text-sm text-red-600">
                             Такой криптовалюты не существует
                         </div>
                     </div>
@@ -171,7 +171,7 @@ export default {
             graph: [],
             suggest: [],
             suggestError: false,
-            non_existent: false,
+            nonExistent: false,
             page: 1,
             filter: '',
             pages: 0
@@ -208,7 +208,7 @@ export default {
                 this.suggestError = true;
                 return;
             } else if (!this.coins.Data[this.ticker.toUpperCase().trim()]) {
-                this.non_existent = true;
+                this.nonExistent = true;
                 return;
             }
 
@@ -256,14 +256,15 @@ export default {
 
         changeTicker() {
             this.suggestError = false;
-            this.non_existent = false;
+            this.nonExistent = false;
 
             if (this.ticker.length) {
                 this.suggest = Object.values(this.coins.Data)
                     .filter(
                         (coin) =>
-                            coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
-                            coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())
+                            (coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
+                            coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())) &&
+                            !this.tickers.find((t) => t.name === coin.Symbol)
                     )
                     .map((coin) => coin.Symbol);
             } else {
