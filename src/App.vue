@@ -33,14 +33,17 @@
                             </span>
                         </div>
                         <div v-if="suggestError" class="text-sm text-red-600">
-                            Такой тикер уже добавлен
+                            Такая криптовалюта уже добавлена
+                        </div>
+                        <div v-if="non_existent" class="text-sm text-red-600">
+                            Такой криптовалюты не существует
                         </div>
                     </div>
                 </div>
                 <button
                     @click="add"
                     type="button"
-                    class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300"
                 >
                     <svg
                         class="-ml-0.5 mr-2 h-6 w-6"
@@ -59,9 +62,28 @@
             </section>
             <template v-if="tickers.length">
                 <hr class="w-full border-t border-gray-600 my-4" />
+                <div>
+                    <button
+                        class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300"
+                        @click="page--"
+                        v-if="page > 1"
+                    >
+                        Назад
+                    </button>
+                    <button
+                        class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300"
+                        @click="page++"
+                        v-if="page < pages"
+                    >
+                        Вперед
+                    </button>
+                    <div>Фильтр: <input v-model="filter" /></div>
+                </div>
+
+                <hr class="w-full border-t border-gray-600 my-4" />
                 <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <div
-                        v-for="t in tickers"
+                        v-for="t in filteredTickers()"
                         :key="t.name"
                         @click="select(t)"
                         :class="{
@@ -114,7 +136,6 @@
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             xmlns:xlink="http://www.w3.org/1999/xlink"
-                            xmlns:svgjs="http://svgjs.com/svgjs"
                             version="1.1"
                             width="30"
                             height="30"
@@ -149,14 +170,36 @@ export default {
             sel: null,
             graph: [],
             suggest: [],
-            suggestError: false
+            suggestError: false,
+            non_existent: false,
+            page: 1,
+            filter: '',
+            pages: 0
         };
     },
 
     created: async function () {
-        const req = await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true');
+        const urlData = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+        this.filter = urlData.filter ?? '';
+        this.page = urlData.page ?? 1;
 
-        this.coins = await req.json();
+        this.coins = await (
+            await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
+        ).json();
+
+        this.tickers = JSON.parse(localStorage.getItem('tickers')) || [];
+        this.tickers.forEach((t) => this.subscribeToUpdates(t.name));
+    },
+
+    watch: {
+        filter() {
+            this.page = 1;
+
+            window.history.pushState(null, null, `?filter=${this.filter}&page=${this.page}`);
+        },
+        page() {
+            window.history.pushState(null, null, `?filter=${this.filter}&page=${this.page}`);
+        }
     },
 
     methods: {
@@ -164,28 +207,45 @@ export default {
             if (this.tickers.find((t) => t.name === this.ticker.toUpperCase().trim())) {
                 this.suggestError = true;
                 return;
+            } else if (!this.coins.Data[this.ticker.toUpperCase().trim()]) {
+                this.non_existent = true;
+                return;
             }
 
-            const newTicker = { name: this.ticker, price: 'wait' };
+            const newTicker = { name: this.ticker.toUpperCase(), price: 'wait' };
 
             this.tickers.push(newTicker);
 
-            setInterval(async () => {
-                const req = await fetch(
-                    `https://min-api.cryptocompare.com/data/price?fsym=${newTicker.name}&tsyms=USD&api_key=3574a1ea559b10639c916230210b98d53d046aec99e2cea3362a3bbb137f8df8`
-                );
-                const data = await req.json();
+            localStorage.setItem('tickers', JSON.stringify(this.tickers));
 
-                this.tickers.find((t) => t.name === newTicker.name).price =
+            this.subscribeToUpdates(newTicker.name);
+
+            this.ticker = null;
+            this.filter = '';
+            this.suggest = [];
+        },
+
+        filteredTickers() {
+            const filtered = this.tickers.filter((t) => t.name.includes(this.filter.toUpperCase().trim()));
+            this.pages = Math.ceil(filtered.length / 6);
+            return filtered.slice((this.page - 1) * 6, this.page * 6);
+        },
+
+        subscribeToUpdates(newTickerName) {
+            setInterval(async () => {
+                const data = await (
+                    await fetch(
+                        `https://min-api.cryptocompare.com/data/price?fsym=${newTickerName}&tsyms=USD&api_key=3574a1ea559b10639c916230210b98d53d046aec99e2cea3362a3bbb137f8df8`
+                    )
+                ).json();
+
+                this.tickers.find((t) => t.name === newTickerName).price =
                     data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-                if (this.sel?.name === newTicker.name) {
+                if (this.sel?.name === newTickerName) {
                     this.graph.push(data.USD);
                 }
             }, 3000);
-
-            this.ticker = null;
-            this.suggest = [];
         },
 
         addSuggest(ticker) {
@@ -196,6 +256,7 @@ export default {
 
         changeTicker() {
             this.suggestError = false;
+            this.non_existent = false;
 
             if (this.ticker.length) {
                 this.suggest = Object.values(this.coins.Data)
@@ -228,6 +289,7 @@ export default {
 
         handleDelete(toRemove) {
             this.tickers = this.tickers.filter((t) => t !== toRemove);
+            localStorage.setItem('tickers', JSON.stringify(this.tickers));
 
             this.sel = null;
         }
