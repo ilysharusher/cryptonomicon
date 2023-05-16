@@ -66,14 +66,18 @@
                     <button
                         class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300"
                         @click="page--"
-                        v-if="page > 1"
+                        :class="{
+                            'opacity-50 pointer-events-none': page < 2
+                        }"
                     >
                         Назад
                     </button>
                     <button
                         class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300"
                         @click="page++"
-                        v-if="page < pages"
+                        :class="{
+                            'opacity-50 pointer-events-none': page >= pagesCount
+                        }"
                     >
                         Вперед
                     </button>
@@ -83,11 +87,11 @@
                 <hr class="w-full border-t border-gray-600 my-4" />
                 <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <div
-                        v-for="t in filteredTickers()"
+                        v-for="t in paginatedTickers"
                         :key="t.name"
                         @click="select(t)"
                         :class="{
-                            'border-4': sel === t
+                            'border-4': selectedTicker === t
                         }"
                         class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
                     >
@@ -95,7 +99,9 @@
                             <dt class="text-sm font-medium text-gray-500 truncate">
                                 {{ t.name }} - USD
                             </dt>
-                            <dd class="mt-1 text-3xl font-semibold text-gray-900">{{ t.price }}</dd>
+                            <dd class="mt-1 text-3xl font-semibold text-gray-900">
+                                {{ formatPrice(t.price) }}
+                            </dd>
                         </div>
                         <div class="w-full border-t border-gray-200"></div>
                         <button
@@ -120,19 +126,23 @@
                     </div>
                 </dl>
                 <hr class="w-full border-t border-gray-600 my-4" />
-                <section v-if="sel" class="relative">
+                <section v-if="selectedTicker" class="relative">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-                        {{ sel.name }} - USD
+                        {{ selectedTicker.name }} - USD
                     </h3>
                     <div class="flex items-end border-gray-600 border-b border-l h-64">
                         <div
-                            v-for="(bar, id) in normalizeGraph()"
+                            v-for="(bar, id) in normalizedGraph"
                             :key="id"
                             :style="{ height: `${bar}%` }"
                             class="bg-purple-800 border w-10"
                         ></div>
                     </div>
-                    <button @click="sel = null" type="button" class="absolute top-0 right-0">
+                    <button
+                        @click="selectedTicker = null"
+                        type="button"
+                        class="absolute top-0 right-0"
+                    >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -161,44 +171,91 @@
 </template>
 
 <script>
+import { subscribeToTicker, unsubscribeFromTicker } from './api';
+
 export default {
     data() {
         return {
             coins: null,
             ticker: null,
             tickers: [],
-            sel: null,
+            selectedTicker: null,
             graph: [],
             suggest: [],
             suggestError: false,
             nonExistent: false,
             page: 1,
-            filter: '',
-            pages: 0
+            filter: ''
         };
     },
 
     created: async function () {
         const urlData = Object.fromEntries(new URLSearchParams(window.location.search).entries());
-        this.filter = urlData.filter ?? '';
-        this.page = urlData.page ?? 1;
+        Object.assign(this, urlData);
 
         this.coins = await (
             await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
         ).json();
 
         this.tickers = JSON.parse(localStorage.getItem('tickers')) || [];
-        this.tickers.forEach((t) => this.subscribeToUpdates(t.name));
+        this.tickers.forEach((ticker) => {
+            subscribeToTicker(ticker.name, (newPrice) => this.updateTicker(ticker.name, newPrice));
+        });
     },
 
     watch: {
+        tickers() {
+            localStorage.setItem('tickers', JSON.stringify(this.tickers));
+        },
+
+        paginatedTickers() {
+            if (this.paginatedTickers.length < 1 && this.page > 1) {
+                this.page--;
+            }
+        },
+
         filter() {
             this.page = 1;
-
-            window.history.pushState(null, null, `?filter=${this.filter}&page=${this.page}`);
         },
-        page() {
-            window.history.pushState(null, null, `?filter=${this.filter}&page=${this.page}`);
+
+        pageStateOptions(value) {
+            window.history.pushState(null, null, `?filter=${value.filter}&page=${value.page}`);
+        },
+
+        selectedTicker() {
+            this.graph = [];
+        }
+    },
+
+    computed: {
+        filteredTickers() {
+            return this.tickers.filter((t) => t.name.includes(this.filter.toUpperCase().trim()));
+        },
+
+        paginatedTickers() {
+            return this.filteredTickers.slice((this.page - 1) * 6, this.page * 6);
+        },
+
+        pagesCount() {
+            return Math.ceil(this.filteredTickers.length / 6);
+        },
+
+        normalizedGraph() {
+            const max = Math.max(...this.graph);
+            const min = Math.min(...this.graph);
+
+            if (max === min) {
+                return this.graph.map(() => 50);
+            }
+
+            return this.graph.map((g) => 5 + ((g - min) * 95) / (max - min));
+        },
+
+        pageStateOptions() {
+            return {
+                page: this.page,
+                filter: this.filter
+            };
         }
     },
 
@@ -214,38 +271,28 @@ export default {
 
             const newTicker = { name: this.ticker.toUpperCase(), price: 'wait' };
 
-            this.tickers.push(newTicker);
+            this.tickers = [newTicker, ...this.tickers];
 
-            localStorage.setItem('tickers', JSON.stringify(this.tickers));
-
-            this.subscribeToUpdates(newTicker.name);
+            subscribeToTicker(newTicker.name, (newPrice) =>
+                this.updateTicker(newTicker.name, newPrice)
+            );
 
             this.ticker = null;
             this.filter = '';
             this.suggest = [];
         },
 
-        filteredTickers() {
-            const filtered = this.tickers.filter((t) => t.name.includes(this.filter.toUpperCase().trim()));
-            this.pages = Math.ceil(filtered.length / 6);
-            return filtered.slice((this.page - 1) * 6, this.page * 6);
+        updateTicker(tickerName, price) {
+            const ticker = this.tickers.find((t) => t.name === tickerName);
+            ticker.price = price;
         },
 
-        subscribeToUpdates(newTickerName) {
-            setInterval(async () => {
-                const data = await (
-                    await fetch(
-                        `https://min-api.cryptocompare.com/data/price?fsym=${newTickerName}&tsyms=USD&api_key=3574a1ea559b10639c916230210b98d53d046aec99e2cea3362a3bbb137f8df8`
-                    )
-                ).json();
+        formatPrice(price) {
+            if (price === 'wait') {
+                return price;
+            }
 
-                this.tickers.find((t) => t.name === newTickerName).price =
-                    data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-
-                if (this.sel?.name === newTickerName) {
-                    this.graph.push(data.USD);
-                }
-            }, 3000);
+            return price > 1 ? price.toFixed(2) : price.toPrecision(2);
         },
 
         addSuggest(ticker) {
@@ -263,7 +310,7 @@ export default {
                     .filter(
                         (coin) =>
                             (coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
-                            coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())) &&
+                                coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())) &&
                             !this.tickers.find((t) => t.name === coin.Symbol)
                     )
                     .map((coin) => coin.Symbol);
@@ -272,27 +319,22 @@ export default {
             }
         },
 
-        normalizeGraph() {
-            const max = Math.max(...this.graph);
-            const min = Math.min(...this.graph);
-
-            return this.graph.map((g) => 5 + ((g - min) * 95) / (max - min));
-        },
-
         select(ticker) {
-            this.sel
-                ? this.sel.name === ticker.name
-                    ? (this.sel = null)
-                    : (this.sel = ticker)
-                : (this.sel = ticker);
-            this.graph = [];
+            this.selectedTicker
+                ? this.selectedTicker.name === ticker.name
+                    ? (this.selectedTicker = null)
+                    : (this.selectedTicker = ticker)
+                : (this.selectedTicker = ticker);
         },
 
         handleDelete(toRemove) {
             this.tickers = this.tickers.filter((t) => t !== toRemove);
-            localStorage.setItem('tickers', JSON.stringify(this.tickers));
 
-            this.sel = null;
+            unsubscribeFromTicker(toRemove.name);
+
+            if (this.selectedTicker === toRemove) {
+                this.selectedTicker = null;
+            }
         }
     }
 };
