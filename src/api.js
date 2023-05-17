@@ -14,28 +14,6 @@ socket.addEventListener('message', (e) => {
     handlers.forEach((fn) => fn(newPrice));
 });
 
-/*const loadTickers = () => {
-    // debugger;
-    if (tickersHandlers.size === 0) return;
-
-    fetch(
-        `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${[...tickersHandlers.keys()].join(
-            ','
-        )}&tsyms=USD&api_key=${API_KEY}`
-    )
-        .then((res) => res.json())
-        .then((prices) => {
-            const updatedPrices = Object.fromEntries(
-                Object.entries(prices).map(([ticker, price]) => [ticker, price.USD])
-            );
-
-            Object.entries(updatedPrices).forEach(([currency, newPrice]) => {
-                const handlers = tickersHandlers.get(currency) || [];
-                handlers.forEach((fn) => fn(newPrice));
-            });
-        });
-};*/
-
 function sendToWebSocket(message) {
     const stringifiedMessage = JSON.stringify(message);
 
@@ -54,21 +32,17 @@ function sendToWebSocket(message) {
 }
 
 function subscribeToTickerOnWs(ticker) {
-    sendToWebSocket(
-        {
-            action: 'SubAdd',
-            subs: [`5~CCCAGG~${ticker}~USD`]
-        },
-    );
+    sendToWebSocket({
+        action: 'SubAdd',
+        subs: [`5~CCCAGG~${ticker}~USD`]
+    });
 }
 
 function unsubscribeFromTickerOnWs(ticker) {
-    sendToWebSocket(
-        {
-            action: 'SubRemove',
-            subs: [`5~CCCAGG~${ticker}~USD`]
-        },
-    );
+    sendToWebSocket({
+        action: 'SubRemove',
+        subs: [`5~CCCAGG~${ticker}~USD`]
+    });
 }
 
 export const subscribeToTicker = (ticker, cb) => {
@@ -84,4 +58,4 @@ export const unsubscribeFromTicker = (ticker) => {
 
 // setInterval(loadTickers, 3000);
 
-window.tickers = tickersHandlers;
+// window.tickers = tickersHandlers;

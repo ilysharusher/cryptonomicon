@@ -284,6 +284,9 @@ export default {
 
         updateTicker(tickerName, price) {
             const ticker = this.tickers.find((t) => t.name === tickerName);
+            if (ticker === this.selectedTicker) {
+                this.graph.push(price);
+            }
             ticker.price = price;
         },
 
