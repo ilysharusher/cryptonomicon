@@ -3,8 +3,8 @@ const API_KEY = '3574a1ea559b10639c916230210b98d53d046aec99e2cea3362a3bbb137f8df
 const tickersHandlers = new Map();
 const socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${API_KEY}`);
 
-socket.addEventListener('message', (e) => {
-    const { TYPE: type, FROMSYMBOL: currency, PRICE: newPrice } = JSON.parse(e.data);
+socket.addEventListener('message', (event) => {
+    const { TYPE: type, FROMSYMBOL: currency, PRICE: newPrice } = JSON.parse(event.data);
 
     if (type !== '5' || newPrice === undefined) {
         return;
@@ -55,7 +55,3 @@ export const unsubscribeFromTicker = (ticker) => {
     tickersHandlers.delete(ticker);
     unsubscribeFromTickerOnWs(ticker);
 };
-
-// setInterval(loadTickers, 3000);
-
-// window.tickers = tickersHandlers;
