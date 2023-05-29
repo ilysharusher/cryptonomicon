@@ -131,15 +131,6 @@
                         {{ selectedTicker.name }} - USD
                     </h3>
                     <div class='flex items-end border-gray-600 border-b border-l h-64' ref='graph'>
-                        <!--                        <div
-                                                    v-for='(bar, id) in normalizedGraph'
-                                                    :key='id'
-                                                    :style='{
-                                                        height: bar + "%",
-                                                        width: barWidth + "px",
-                                                    }'
-                                                    class='bg-purple-800 border'
-                                                ></div>-->
                         <div
                             v-for='(bar, id) in normalizedGraph'
                             :key='id'
@@ -148,7 +139,6 @@
                                 width: barWidth + "px",
                             }'
                             class='bg-purple-800 border w-10'
-                            ref='bar'
                         ></div>
                     </div>
                     <button
@@ -239,6 +229,7 @@ export default {
 
         selectedTicker() {
             this.graph = [];
+            this.$nextTick().then(this.calculateMaxGraphElements);
         }
     },
 
