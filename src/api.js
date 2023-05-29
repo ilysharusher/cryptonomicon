@@ -31,27 +31,19 @@ function sendToWebSocket(message) {
     );
 }
 
-function subscribeToTickerOnWs(ticker) {
-    sendToWebSocket({
-        action: 'SubAdd',
-        subs: [`5~CCCAGG~${ticker}~USD`]
-    });
-}
-
-function unsubscribeFromTickerOnWs(ticker) {
-    sendToWebSocket({
-        action: 'SubRemove',
-        subs: [`5~CCCAGG~${ticker}~USD`]
-    });
-}
-
 export const subscribeToTicker = (ticker, cb) => {
     const subscribers = tickersHandlers.get(ticker) || [];
     tickersHandlers.set(ticker, [...subscribers, cb]);
-    subscribeToTickerOnWs(ticker);
+    sendToWebSocket({
+        action: 'SubAdd',
+        subs: [`5~CCCAGG~${ticker}~USDT`]
+    });
 };
 
 export const unsubscribeFromTicker = (ticker) => {
     tickersHandlers.delete(ticker);
-    unsubscribeFromTickerOnWs(ticker);
+    sendToWebSocket({
+        action: 'SubRemove',
+        subs: [`5~CCCAGG~${ticker}~USDT`]
+    });
 };

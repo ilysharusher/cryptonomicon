@@ -130,12 +130,25 @@
                     <h3 class='text-lg leading-6 font-medium text-gray-900 my-8'>
                         {{ selectedTicker.name }} - USD
                     </h3>
-                    <div class='flex items-end border-gray-600 border-b border-l h-64'>
+                    <div class='flex items-end border-gray-600 border-b border-l h-64' ref='graph'>
+                        <!--                        <div
+                                                    v-for='(bar, id) in normalizedGraph'
+                                                    :key='id'
+                                                    :style='{
+                                                        height: bar + "%",
+                                                        width: barWidth + "px",
+                                                    }'
+                                                    class='bg-purple-800 border'
+                                                ></div>-->
                         <div
                             v-for='(bar, id) in normalizedGraph'
                             :key='id'
-                            :style='{ height: `${bar}%` }'
+                            :style='{
+                                height: bar + "%",
+                                width: barWidth + "px",
+                            }'
                             class='bg-purple-800 border w-10'
+                            ref='bar'
                         ></div>
                     </div>
                     <button
@@ -185,7 +198,9 @@ export default {
             suggestError: false,
             nonExistent: false,
             page: 1,
-            filter: ''
+            filter: '',
+            maxGraphElements: 1,
+            barWidth: 40
         };
     },
 
@@ -259,7 +274,29 @@ export default {
         }
     },
 
+    mounted() {
+        window.addEventListener('resize', this.changeMaxGraphElements);
+    },
+
+    beforeUnmount() {
+        window.removeEventListener('resize', this.changeMaxGraphElements);
+    },
+
     methods: {
+        changeMaxGraphElements() {
+            this.calculateMaxGraphElements();
+            if (this.maxGraphElements < this.graph.length) {
+                this.graph = this.graph.slice(-this.maxGraphElements);
+            }
+        },
+
+        calculateMaxGraphElements() {
+            if (!this.$refs.graph) {
+                return;
+            }
+            this.maxGraphElements = this.$refs.graph.clientWidth / this.barWidth;
+        },
+
         add() {
             if (this.tickers.find((t) => t.name === this.ticker.toUpperCase().trim())) {
                 this.suggestError = true;
@@ -286,6 +323,9 @@ export default {
             const ticker = this.tickers.find((t) => t.name === tickerName);
             if (ticker === this.selectedTicker) {
                 this.graph.push(price);
+                if (this.graph.length > this.maxGraphElements) {
+                    this.changeMaxGraphElements();
+                }
             }
             ticker.price = price;
         },
