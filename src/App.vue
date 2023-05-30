@@ -1,65 +1,7 @@
 <template>
     <div class='container mx-auto flex flex-col items-center bg-gray-100 p-4'>
         <div class='container'>
-            <section>
-                <div class='flex'>
-                    <div class='max-w-xs'>
-                        <label for='wallet' class='block text-sm font-medium text-gray-700'
-                        >Добавить криптовалюту</label
-                        >
-                        <div class='mt-1 relative rounded-md shadow-md'>
-                            <input
-                                v-model='ticker'
-                                @input='changeTicker'
-                                @keydown.enter='add'
-                                type='text'
-                                name='wallet'
-                                id='wallet'
-                                class='block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md'
-                                placeholder='Например BTC'
-                            />
-                        </div>
-                        <div
-                            v-if='suggest.length'
-                            class='flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap justify-center'
-                        >
-                            <span
-                                v-for='(s, id) in suggest.slice(0, 4)'
-                                :key='id'
-                                @click='addSuggest(s)'
-                                class='inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer'
-                            >
-                                {{ s }}
-                            </span>
-                        </div>
-                        <div v-if='suggestError' class='text-sm text-red-600'>
-                            Такая криптовалюта уже добавлена
-                        </div>
-                        <div v-if='nonExistent' class='text-sm text-red-600'>
-                            Такой криптовалюты не существует
-                        </div>
-                    </div>
-                </div>
-                <button
-                    @click='add'
-                    type='button'
-                    class='my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300'
-                >
-                    <svg
-                        class='-ml-0.5 mr-2 h-6 w-6'
-                        xmlns='http://www.w3.org/2000/svg'
-                        width='30'
-                        height='30'
-                        viewBox='0 0 24 24'
-                        fill='#ffffff'
-                    >
-                        <path
-                            d='M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z'
-                        ></path>
-                    </svg>
-                    Добавить
-                </button>
-            </section>
+            <add-ticker @add-ticker='add' :disabled='tooManyTickersAdded'/>
             <template v-if='tickers.length'>
                 <hr class='w-full border-t border-gray-600 my-4' />
                 <div>
@@ -175,12 +117,16 @@
 
 <script>
 import { subscribeToTicker, unsubscribeFromTicker } from './api';
+import AddTicker from './components/AddTicker.vue';
 
 export default {
+    components: {
+        AddTicker
+    },
+
     data() {
         return {
             coins: null,
-            ticker: null,
             tickers: [],
             selectedTicker: null,
             graph: [],
@@ -234,6 +180,10 @@ export default {
     },
 
     computed: {
+        tooManyTickersAdded() {
+            return this.tickers.length >= 3;
+        },
+
         filteredTickers() {
             return this.tickers.filter((t) => t.name.includes(this.filter.toUpperCase().trim()));
         },
@@ -288,16 +238,16 @@ export default {
             this.maxGraphElements = this.$refs.graph.clientWidth / this.barWidth;
         },
 
-        add() {
-            if (this.tickers.find((t) => t.name === this.ticker.toUpperCase().trim())) {
+        add(ticker) {
+            /*if (this.tickers.find((t) => t.name === ticker.toUpperCase().trim())) {
                 this.suggestError = true;
                 return;
-            } else if (!this.coins.Data[this.ticker.toUpperCase().trim()]) {
+            } else if (!this.coins.Data[ticker.toUpperCase().trim()]) {
                 this.nonExistent = true;
                 return;
-            }
+            }*/
 
-            const newTicker = { name: this.ticker.toUpperCase(), price: 'wait' };
+            const newTicker = { name: ticker.toUpperCase(), price: 'wait' };
 
             this.tickers = [newTicker, ...this.tickers];
 
@@ -305,7 +255,6 @@ export default {
                 this.updateTicker(newTicker.name, newPrice)
             );
 
-            this.ticker = null;
             this.filter = '';
             this.suggest = [];
         },
