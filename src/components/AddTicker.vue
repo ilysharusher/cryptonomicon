@@ -55,6 +55,11 @@ export default {
             type: Boolean,
             default: false,
             required: false
+        },
+        tickers: {
+            type: Array,
+            default: () => [],
+            required: false
         }
     },
 
@@ -65,11 +70,17 @@ export default {
     data() {
         return {
             ticker: '',
-            filter: '',
+            coins: null,
             suggest: [],
             suggestError: false,
             nonExistent: false
         };
+    },
+
+    created: async function() {
+        this.coins = await (
+            await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
+        ).json();
     },
 
     methods: {
@@ -77,6 +88,30 @@ export default {
             if (this.ticker.length) {
                 this.$emit('add-ticker', this.ticker);
                 this.ticker = '';
+            }
+        },
+
+        addSuggest(ticker) {
+            this.ticker = ticker;
+
+            this.add();
+        },
+
+        changeTicker() {
+            this.suggestError = false;
+            this.nonExistent = false;
+
+            if (this.ticker.length) {
+                this.suggest = Object.values(this.coins.Data)
+                    .filter(
+                        (coin) =>
+                            (coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
+                                coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())) &&
+                            !this.tickers.find((t) => t.name === coin.Symbol)
+                    )
+                    .map((coin) => coin.Symbol);
+            } else {
+                this.suggest = [];
             }
         }
     }

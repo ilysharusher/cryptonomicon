@@ -1,7 +1,7 @@
 <template>
     <div class='container mx-auto flex flex-col items-center bg-gray-100 p-4'>
         <div class='container'>
-            <add-ticker @add-ticker='add' :disabled='tooManyTickersAdded'/>
+            <add-ticker @add-ticker='add' :disabled='tooManyTickersAdded' :tickers='tickers' />
             <template v-if='tickers.length'>
                 <hr class='w-full border-t border-gray-600 my-4' />
                 <div>
@@ -126,13 +126,9 @@ export default {
 
     data() {
         return {
-            coins: null,
             tickers: [],
             selectedTicker: null,
             graph: [],
-            suggest: [],
-            suggestError: false,
-            nonExistent: false,
             page: 1,
             filter: '',
             maxGraphElements: 1,
@@ -140,13 +136,9 @@ export default {
         };
     },
 
-    created: async function() {
+    created() {
         const urlData = Object.fromEntries(new URLSearchParams(window.location.search).entries());
         Object.assign(this, urlData);
-
-        this.coins = await (
-            await fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
-        ).json();
 
         this.tickers = JSON.parse(localStorage.getItem('tickers')) || [];
         this.tickers.forEach((ticker) => {
@@ -239,13 +231,13 @@ export default {
         },
 
         add(ticker) {
-            /*if (this.tickers.find((t) => t.name === ticker.toUpperCase().trim())) {
+            if (this.tickers.find((t) => t.name === ticker.toUpperCase().trim())) {
                 this.suggestError = true;
                 return;
             } else if (!this.coins.Data[ticker.toUpperCase().trim()]) {
                 this.nonExistent = true;
                 return;
-            }*/
+            }
 
             const newTicker = { name: ticker.toUpperCase(), price: 'wait' };
 
@@ -276,30 +268,6 @@ export default {
             }
 
             return price > 1 ? price.toFixed(2) : price.toPrecision(2);
-        },
-
-        addSuggest(ticker) {
-            this.ticker = ticker;
-
-            this.add();
-        },
-
-        changeTicker() {
-            this.suggestError = false;
-            this.nonExistent = false;
-
-            if (this.ticker.length) {
-                this.suggest = Object.values(this.coins.Data)
-                    .filter(
-                        (coin) =>
-                            (coin.Symbol.toLowerCase().includes(this.ticker.toLowerCase()) ||
-                                coin.FullName.toLowerCase().includes(this.ticker.toLowerCase())) &&
-                            !this.tickers.find((t) => t.name === coin.Symbol)
-                    )
-                    .map((coin) => coin.Symbol);
-            } else {
-                this.suggest = [];
-            }
         },
 
         select(ticker) {
