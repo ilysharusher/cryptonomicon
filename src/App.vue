@@ -1,7 +1,7 @@
 <template>
     <div class='container mx-auto flex flex-col items-center bg-gray-100 p-4'>
         <div class='container'>
-            <add-ticker @add-ticker='add' :disabled='tooManyTickersAdded' :tickers='tickers' />
+            <add-ticker @add-ticker='add' :tooManyTickers='tooManyTickersAdded' :tickers='tickers' />
             <template v-if='tickers.length'>
                 <hr class='w-full border-t border-gray-600 my-4' />
                 <div>
@@ -231,14 +231,6 @@ export default {
         },
 
         add(ticker) {
-            if (this.tickers.find((t) => t.name === ticker.toUpperCase().trim())) {
-                this.suggestError = true;
-                return;
-            } else if (!this.coins.Data[ticker.toUpperCase().trim()]) {
-                this.nonExistent = true;
-                return;
-            }
-
             const newTicker = { name: ticker.toUpperCase(), price: 'wait' };
 
             this.tickers = [newTicker, ...this.tickers];

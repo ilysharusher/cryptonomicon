@@ -36,9 +36,12 @@
                 <div v-if='nonExistent' class='text-sm text-red-600'>
                     Такой криптовалюты не существует
                 </div>
+                <div v-if='tooManyTickers' class='text-sm text-red-600'>
+                    Достигнуто максимальное кол-во криптовалют
+                </div>
             </div>
         </div>
-        <add-button @click='add' :disabled='disabled' />
+        <add-button @click='add' :disabled='tooManyTickers' />
     </section>
 </template>
 
@@ -51,7 +54,7 @@ export default {
     },
 
     props: {
-        disabled: {
+        tooManyTickers: {
             type: Boolean,
             default: false,
             required: false
@@ -85,21 +88,33 @@ export default {
 
     methods: {
         add() {
+            if (this.tickers.find((t) => t.name === this.ticker.toUpperCase().trim())) {
+                this.suggestError = true;
+                return;
+            } else if (!this.coins.Data[this.ticker.toUpperCase().trim()]) {
+                this.nonExistent = true;
+                return;
+            } else if (this.tooManyTickers) {
+                return;
+            }
+
             if (this.ticker.length) {
                 this.$emit('add-ticker', this.ticker);
                 this.ticker = '';
+                this.suggest = [];
             }
         },
 
         addSuggest(ticker) {
             this.ticker = ticker;
 
+            this.resetErrors();
+
             this.add();
         },
 
         changeTicker() {
-            this.suggestError = false;
-            this.nonExistent = false;
+            this.resetErrors();
 
             if (this.ticker.length) {
                 this.suggest = Object.values(this.coins.Data)
@@ -113,6 +128,11 @@ export default {
             } else {
                 this.suggest = [];
             }
+        },
+
+        resetErrors() {
+            this.suggestError = false;
+            this.nonExistent = false;
         }
     }
 };
