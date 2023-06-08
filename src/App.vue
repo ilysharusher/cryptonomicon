@@ -1,4 +1,8 @@
 <template>
+    <delete-modal id='alert-modal' data-modal-target='alert-modal' v-model:value='showDeleteModal' :toRemove='toRemove?.name'
+                  @accept='handleAcceptDelete' @decline='handleDecineDelete'>
+        Вы точно хотите удалить тикер {{ toRemove?.name }}?
+    </delete-modal>
     <div class='container mx-auto flex flex-col items-center bg-gray-100 p-4'>
         <div class='container'>
             <add-ticker @add-ticker='add' :tooManyTickers='tooManyTickersAdded' :tickers='tickers' />
@@ -10,7 +14,7 @@
                         @click='page--'
                         :class="{
                             'opacity-50 pointer-events-none': page < 2
-                        }"
+                           }"
                     >
                         Назад
                     </button>
@@ -70,8 +74,8 @@
                 <hr class='w-full border-t border-gray-600 my-4' />
                 <add-graphic
                     @close-graph="selectedTicker = ''"
-                    :currency="selectedTicker.name"
-                    :graphList="graph"
+                    :currency='selectedTicker?.name'
+                    :graphList='graph'
                 />
             </template>
         </div>
@@ -82,9 +86,11 @@
 import { subscribeToTicker, unsubscribeFromTicker } from './api';
 import AddTicker from './components/AddTicker.vue';
 import AddGraphic from './components/AddGraphic.vue';
+import DeleteModal from './components/DeleteModal.vue';
 
 export default {
     components: {
+        DeleteModal,
         AddTicker,
         AddGraphic
     },
@@ -96,6 +102,8 @@ export default {
             graph: [],
             page: 1,
             filter: '',
+            showDeleteModal: false,
+            toRemove: null
         };
     },
 
@@ -130,7 +138,6 @@ export default {
 
         selectedTicker() {
             this.graph = [];
-            // this.$nextTick().then(this.calculateMaxGraphElements);
         }
     },
 
@@ -170,29 +177,7 @@ export default {
         }
     },
 
-    /*mounted() {
-        window.addEventListener('resize', this.changeMaxGraphElements);
-    },
-
-    beforeUnmount() {
-        window.removeEventListener('resize', this.changeMaxGraphElements);
-    },*/
-
     methods: {
-        /*changeMaxGraphElements() {
-            this.calculateMaxGraphElements();
-            if (this.maxGraphElements < this.graph.length) {
-                this.graph = this.graph.slice(-this.maxGraphElements);
-            }
-        },
-
-        calculateMaxGraphElements() {
-            if (!this.$refs.graph) {
-                return;
-            }
-            this.maxGraphElements = this.$refs.graph.clientWidth / this.barWidth;
-        },*/
-
         add(ticker) {
             const newTicker = { name: ticker.toUpperCase(), price: 'wait' };
 
@@ -233,14 +218,26 @@ export default {
                 : (this.selectedTicker = ticker);
         },
 
-        handleDelete(toRemove) {
-            this.tickers = this.tickers.filter((t) => t !== toRemove);
+        handleAcceptDelete() {
+            this.tickers = this.tickers.filter((t) => t !== this.toRemove);
 
-            unsubscribeFromTicker(toRemove.name);
+            unsubscribeFromTicker(this.toRemove.name);
 
-            if (this.selectedTicker === toRemove) {
+            if (this.selectedTicker === this.toRemove) {
                 this.selectedTicker = null;
             }
+
+            this.showDeleteModal = false;
+        },
+
+        handleDelete(ticker) {
+            this.toRemove = ticker;
+            this.showDeleteModal = true;
+        },
+
+        handleDecineDelete() {
+            this.toRemove = null;
+            this.showDeleteModal = false;
         }
     }
 };

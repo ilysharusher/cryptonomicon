@@ -18,7 +18,7 @@
             ></div>
         </div>
         <button
-            @click='closeGraph'
+            @click="$emit('close-graph');"
             type='button'
             class='absolute top-0 right-0'
         >
@@ -102,9 +102,6 @@ export default {
                     this.$refs.graph.clientWidth / this.graphWidth
                 );
             }
-        },
-        closeGraph() {
-            this.$emit('close-graph');
         }
     },
     watch: {
