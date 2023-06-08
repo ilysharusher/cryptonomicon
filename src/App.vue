@@ -143,7 +143,7 @@ export default {
 
     computed: {
         tooManyTickersAdded() {
-            return this.tickers.length >= 3;
+            return this.tickers.length >= 18;
         },
 
         filteredTickers() {

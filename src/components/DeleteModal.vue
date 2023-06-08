@@ -43,6 +43,9 @@
                             Введите "{{ toRemove }}" для подтверждения</label>
                     </div>
                     <button type='button' @click='acceptModal'
+                            :class='{
+                                "opacity-50": confirm.toUpperCase().trim() !== toRemove
+                            }'
                             class='text-white bg-red-700 hover:bg-red-800 focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700'>
                         Удалить
                     </button>
@@ -56,7 +59,7 @@
 import { onMounted, defineProps, defineEmits, watch, ref } from 'vue';
 import { Modal, initFlowbite } from 'flowbite';
 
-let confirm = '';
+let confirm = ref('');
 let wrongConfirm = ref(false);
 
 const props = defineProps({
@@ -79,14 +82,14 @@ const emits = defineEmits({
 
 const closeModal = () => {
     emits('decline', true);
-    confirm = '';
+    confirm.value = '';
     wrongConfirm.value = false;
 };
 
 const acceptModal = () => {
-    if (confirm.toUpperCase().trim() === props.toRemove) {
+    if (confirm.value.toUpperCase().trim() === props.toRemove) {
         emits('accept', true);
-        confirm = '';
+        confirm.value = '';
         wrongConfirm.value = false;
     } else {
         wrongConfirm.value = true;
@@ -104,24 +107,8 @@ onMounted(() => {
         backdropClass: 'bg-gray-900 bg-opacity-50 dark:bg-opacity-80 fixed inset-0 z-40',
         closable: true,
 
-        onShow: () => {
-            console.log('Modal is shown');
-        },
         onHide: () => {
-            console.log('Modal is hidden');
             closeModal();
-        },
-        onHidden: () => {
-            console.log('Modal is fully hidden');
-        },
-        onVisible: () => {
-            console.log('Modal is fully visible');
-        },
-        onApprove: () => {
-            console.log('Modal is approved');
-        },
-        onDeny: () => {
-            console.log('Modal is denied');
         }
     };
 
